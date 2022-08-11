@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
+#
+# minictinit.sh - mini container init
+#
+# Simple script to init ProxMox LXC containers
+# based on Debian/Ubuntu
+#
 
-flag_file=/run/myctinit.flag
-log_file=/tmp/minictinit.log
+flag_file=/var/lib/myctinit.flag
+log_file=/var/log/minictinit.log
 ssh_key=/etc/ssh/ssh_host_dsa_key
 service_file=/etc/systemd/system/minictinit.service
 run_dir=/usr/bin
@@ -78,13 +84,13 @@ EOF
 function uninstall()
 {
     if [ -f $service_file ]; then
-        log "Removing $service_file and $target_exe_file"
-        sudo rm -f $service_file $target_exe_file
+        log "Removing $service_file,$target_exe_file,$flag_file"
+        sudo rm -f $service_file $target_exe_file $flag_file
 
         # recondigure systemd
         sudo systemctl daemon-reload
 
-        echo "removed $service_file and $target_exe_file"
+        echo "removed $service_file and other files"
     else
         echo "$service_file not found"
     fi

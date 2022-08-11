@@ -1,8 +1,0 @@
-[Unit]
-Description=Mini Container Init Script
-
-[Service]
-ExecStart=/run/minictinit.sh start
-
-[Install]
-WantedBy=multi-user.target
