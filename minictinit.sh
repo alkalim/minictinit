@@ -22,10 +22,11 @@ function die()
 function usage()
 {
     cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") install | start
+Usage: $(basename "${BASH_SOURCE[0]}") install | start | uninstall
 Commands:
     install     - install systemd service
     start       - start service (should be run by systemd)
+    uninstall   - remove systemd service
 EOF
     exit
 }
@@ -42,10 +43,10 @@ function start()
         dpkg-reconfigure openssh-server
     fi
 
-
-
     log "Creating $flag_file"
     >$flag_file
+
+    exit
 }
 
 function install()
@@ -69,6 +70,25 @@ EOF
 
     # recondigure systemd and start service
     sudo systemctl daemon-reload
+
+    exit
+}
+
+function uninstall()
+{
+    if [ -f $service_file ]; then
+        log "Removing $service_file"
+        sudo rm -f $service_file
+
+        # recondigure systemd
+        sudo systemctl daemon-reload
+
+        echo "removed $service_file"
+    else
+        echo "$service_file not found"
+    fi
+
+    exit
 }
 
 function check_distro()
@@ -95,6 +115,10 @@ while [ $# -gt 0 ]; do
         start)
             shift
             start
+            ;;
+        uninstall)
+            shift
+            uninstall
             ;;
         *)
             usage
