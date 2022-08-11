@@ -4,8 +4,9 @@ flag_file=/run/myctinit.flag
 log_file=/tmp/minictinit.log
 ssh_key=/etc/ssh/ssh_host_dsa_key
 service_file=/etc/systemd/system/minictinit.service
-run_dir=/run
+run_dir=/usr/bin
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+target_exe_file=$run_dir/$BASH_SOURCE
 
 function log()
 {
@@ -57,7 +58,7 @@ function install()
 Description=Mini Container Init Script
 
 [Service]
-ExecStart=$run_dir/minictinit.sh start
+ExecStart=$target_exe_file start
 
 [Install]
 WantedBy=multi-user.target
@@ -65,8 +66,8 @@ EOF
 
     # copy self to run dir
     [ -d "$run_dir" ] || die "can not find $run_dir"
-    sudo cp "$script_dir/$BASH_SOURCE" $run_dir
-    sudo chmod a+x "$run_dir/$BASH_SOURCE"
+    sudo cp "$script_dir/$BASH_SOURCE" $target_exe_file
+    sudo chmod a+x "$target_exe_file"
 
     # recondigure systemd and start service
     sudo systemctl daemon-reload
@@ -77,13 +78,13 @@ EOF
 function uninstall()
 {
     if [ -f $service_file ]; then
-        log "Removing $service_file"
-        sudo rm -f $service_file
+        log "Removing $service_file and $target_exe_file"
+        sudo rm -f $service_file $target_exe_file
 
         # recondigure systemd
         sudo systemctl daemon-reload
 
-        echo "removed $service_file"
+        echo "removed $service_file and $target_exe_file"
     else
         echo "$service_file not found"
     fi
