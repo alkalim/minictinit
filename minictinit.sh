@@ -2,8 +2,8 @@
 #
 # minictinit.sh - mini container init
 #
-# Simple script to init ProxMox LXC containers
-# based on Debian/Ubuntu
+# Simple script to init ProxMox LXC container clones
+# that are based on Debian/Ubuntu
 #
 
 flag_file=/var/lib/myctinit.flag
@@ -18,7 +18,7 @@ zabbix_conf_dir=/etc/zabbix/zabbix_agentd.conf.d
 
 function log()
 {
-    echo $(date "+%Y%m%d %H:%M:%S ") $@ >> $log_file
+    echo $(date "+%Y/%m/%d %H:%M:%S ") $@ >> $log_file
 }
 
 function die()
@@ -31,43 +31,60 @@ function die()
 function usage()
 {
     cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") install | start [<functions>]| uninstall
+Usage: $(basename "${BASH_SOURCE[0]}") install <functions> | start [<functions>] | uninstall
     Container initialization script
 Commands:
     install     - install systemd service
-    start       - start service (should be run by systemd)
+    start       - start service (should be run by systemd, not manually)
     uninstall   - remove systemd service
 Functions:
-    ssh         - recreate ssh host keys
-    zabbix      - add zabbix autoregistration settings
+    ssh                      - recreate ssh host keys
+    zabbix(<server_ip>)      - configure Zabbix agent (add autoregistration, server ip, etc)
 EOF
     exit
 }
 
 function start()
 {
-    IFS=',' read -ra funcs <<< "$funcs"
+    IFS=',' read -ra funcs <<< "$1"
 
     for func in "${funcs[@]}"; do
-        echo $func
+        case $func in
+            ssh)
+                log "recreate ssh host keys"
+                if [ ! -f "$ssh_key" ]; then 
+                    log "$ssh_key not found, running dpkg-reconfigure"
+                    dpkg-reconfigure openssh-server
+                fi
+                log "enable ssh root access"
+                ssh_config="/etc/ssh/sshd_config"
+                if [ -f "$ssh_config" ]; then
+                    sed -i "s/#PermitRootLogin /PermitRootLogin /" $ssh_config
+                fi
+                ;;
+            zabbix*)
+                log "configuring Zabbix agent"
+                if [ -f "$zabbix_conf" ]; then
+                    server_ip=$(echo $func|sed "s/^zabbix(\(.*\))/\1/")
+                    sed -i "s/^Hostname=\(.*\)/# Hostname=\1/" $zabbix_conf
+                    sed -i "s/^LogFileSize=0/LogFileSize=5M/" $zabbix_conf
+                    sed -i "s/^Server=127.0.0.1/Server=$server_ip/" $zabbix_conf
+                    sed -i "s/^ServerActive=127.0.0.1/ServerActive=$server_ip/" $zabbix_conf
+                    sed -i "s/# HostnameItem=system.hostname/HostnameItem=minictinit.hostname/" $zabbix_conf
+                    sed -i "s/# HostMetadataItem=/HostMetadataItem=minictinit.metadata/" $zabbix_conf
+                    cat > /etc/zabbix/zabbix_agentd.d/minictinit.conf <<EOF
+UserParameter=minictinit.hostname,echo pm-$(hostname)
+UserParameter=minictinit.metadata,echo Linux-pm-$(cat /etc/machine-id)
+EOF
+                else
+                    log "$zabbix_conf doesn't exist"
+                fi
+                ;;
+            *)
+                die "unknown function: $func"
+                ;;
+        esac
     done
-
-    case $func in
-        ssh)
-            log "recreate ssh host keys"
-            if [ ! -f "$ssh_key" ]; then 
-                log "$ssh_key not found, running dpkg-reconfigure"
-                dpkg-reconfigure openssh-server
-            fi
-            ;;
-        zabbix)
-            log "add zabbix autoregistration settings"
-            sed -i "s/^Hostname=\(.*\)/# Hostname=\1/" $zabbix_conf
-            ;;
-        *)
-            die "unknown function: $func"
-            ;;
-    esac
 
     if [ -f "$flag_file" ]; then
         log "found $flag_file, exiting"
@@ -84,7 +101,7 @@ function install()
 {
     funcs=$1
     if [ -z "$funcs" ]; then
-        funcs="ssh,zabbix"
+        funcs="ssh,zabbix(127.0.0.1)"
     fi
 
     # Create systemd unit file
@@ -113,12 +130,10 @@ EOF
 function uninstall()
 {
     if [ -f $service_file ]; then
-        log "Removing $service_file,$target_exe_file,$flag_file"
+        log "removing $service_file,$target_exe_file,$flag_file"
         sudo rm -f $service_file $target_exe_file $flag_file
-
         # recondigure systemd
         sudo systemctl daemon-reload
-
         echo "removed $service_file and other files"
     else
         echo "$service_file not found"
@@ -134,7 +149,6 @@ function check_distro()
     fi
 
     egrep -qi 'ubuntu|debian' /etc/*release
-
     if [ $? -ne 0 ]; then
         die "not running under Debian/Ubuntu"
     fi
