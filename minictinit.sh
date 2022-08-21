@@ -80,6 +80,7 @@ function start
 # added by minictinit.sh
 export EDITOR=$editor
 export VISUAL=\$EDITOR
+# end of minitctinit.sh changes
 EOF
                 ;;
             zabbix*)
@@ -87,16 +88,17 @@ EOF
                 if [ -f "$zabbix_conf" ]; then
                     server_ip=$(parse_func_arg $func)
                     sed -i "s/^Hostname=\(.*\)/# Hostname=\1/" $zabbix_conf
-                    sed -i "s/^LogFileSize=0/LogFileSize=5M/" $zabbix_conf
+                    sed -i "s/^LogFileSize=0/LogFileSize=5/" $zabbix_conf
                     sed -i "s/^Server=127.0.0.1/Server=$server_ip/" $zabbix_conf
                     sed -i "s/^ServerActive=127.0.0.1/ServerActive=$server_ip/" $zabbix_conf
-                    sed -i "s/# HostnameItem=system.hostname/HostnameItem=minictinit.hostname/" $zabbix_conf
+                    sed -i "s/# HostnameItem=system.hostname/HostnameItem=system.hostname/" $zabbix_conf
                     sed -i "s/# HostMetadataItem=/HostMetadataItem=minictinit.metadata/" $zabbix_conf
                     cat > /etc/zabbix/zabbix_agentd.d/minictinit.conf <<EOF
 # added by minictinit.sh
-UserParameter=minictinit.hostname,echo pm-$(hostname)
-UserParameter=minictinit.metadata,echo Linux-pm-$(cat /etc/machine-id)
+UserParameter=minictinit.metadata,echo Linux-pm-\$(cat /etc/machine-id)
+# end of minitctinit.sh changes
 EOF
+                    systemctl restart zabbix-agent.service
                 else
                     log "$zabbix_conf doesn't exist"
                 fi
@@ -131,6 +133,7 @@ function install
     cat >$service_file <<EOF
 [Unit]
 Description=Mini Container Init Script
+After=network.target
 
 [Service]
 ExecStart=$target_exe_file start $funcs
