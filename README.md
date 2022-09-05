@@ -1,5 +1,5 @@
 # minictinit.sh
-minictinit.sh is a simple init script to use with LXC containers based on Debian/Ubuntu. It helps to prepare containers in virtualization systems, such as ProxMox VE. Basically, it's cloudinit with only one config source (command line) and infnitely less features. minictinit.sh can be used for:
+`minictinit.sh` is a simple init script for use with LXC containers based on Debian/Ubuntu. It helps to prepare containers in virtualization systems, such as [ProxMox VE](https://github.com/proxmox). Basically, it's [cloudinit](https://github.com/canonical/cloud-init) with only one config source (command line) and infnitely less features. `minictinit.sh` can be used for:
 * initial image configuration
   * update system
   * add apt sources
@@ -23,13 +23,15 @@ Prepare software in the container by running `minictinit.sh prepare`:
     ./minictinit.sh prepare 'pkgrm(postfix),pkgadd(curl),repoadd(https://repo.example.com/download/repo.deb),update'
 
 ### Installation
-Install init service that will be run only once on first boot:
+Install the init service. It will be run only once on a first boot:
 
-    ./minictinit.sh install "ssh,zabbix(zbx.example.com),editor"
+    ./minictinit.sh install "ssh,zabbix(zbx.example.com),editor(/usr/bin/vi)"
 
-Remove the first copy of `mctinit.sh`:
+Remove the working copy of `minictinit.sh` (install command copied the script to `/usr/bin`):
 
-    rm ./mctinit.sh
+    rm ./minictinit.sh
+
+Convert the container to container template. Now your template is cloneable. Every time you clone the template and run it for the first time it will configure host ssh keys, enable ssh, configure Zabbix agent and set the default editor to vi.
 
 ## Reference
 
