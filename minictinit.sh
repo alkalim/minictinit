@@ -156,11 +156,12 @@ EOF
 
     # copy self to run dir
     [ -d "$run_dir" ] || die "can not find $run_dir"
-    sudo cp "$script_dir/$BASH_SOURCE" $target_exe_file
-    sudo chmod a+x "$target_exe_file"
+    cp "$script_dir/$BASH_SOURCE" $target_exe_file
+    chmod a+x "$target_exe_file"
 
     # recondigure systemd and start service
-    sudo systemctl daemon-reload
+    systemctl daemon-reload
+    systemctl enable minictinit.service
 
     exit
 }
