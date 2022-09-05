@@ -33,18 +33,29 @@ function usage
     cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") <command>
     Initialization script for LXC-based Debian/Ubuntu containers
+
 Commands:
-    install <functions>  - install systemd service
+    prepare              - prepare system by executing <functions>
+    install <functions>  - install systemd service with <functions>
     start <functions>    - start service (should be run by systemd)
     uninstall            - remove systemd service
-Functions:
-    ssh                        - configure ssh (recreate host keys,
-                                 permit root, enable service)
-    zabbix(<server_ip>)        - configure Zabbix agent (add autoregistration,
-                                 set server ip, change log limit)
-    editor(<path_to_editor>)   - set default editor in /etc/bash.bashrc file
-Example:
-./minictinit.sh install ssh,zabbix(zbx.example.com),editor(/usr/bin/vi)
+
+Functions for "prepare":
+    pkgadd(<package>)          - install <package>
+    pkgrm(<package>)           - remove <package>
+    repoadd(<repo_url>)        - add <repo_url> to apt sources
+    upgrade                    - upgrade packages
+
+Functions for "install" / "start":
+    ssh                        - configure ssh (keys, root user, service)
+    zabbix(<server_ip>)        - configure Zabbix agent (autoregistration,
+                                 server ip, log limit)
+    editor(<path_to_editor>)   - set default editor in /etc/bash.bashrc
+
+Examples:
+$ ./minictinit.sh prepare 'pkgrm(postfix),pkgrm(nano),pkgadd(curl),upgrade'
+$ ./minictinit.sh install 'ssh,zabbix(zbx.example.com),editor(/usr/bin/vi)'
+
 EOF
     exit
 }
@@ -153,6 +164,55 @@ EOF
     exit
 }
 
+function prepare
+{
+    if [ -z "$1" ]; then
+        usage
+    fi
+
+    if which wget >/dev/null; then
+        log "wget found"
+    else
+        log "wget not found, installing"
+        apt-get update
+        apt-get install -y wget
+    fi
+
+    log "preparing system with functions $funcs"
+
+    IFS=',' read -ra funcs <<< "$1"
+
+    for func in "${funcs[@]}"; do
+        case $func in
+            pkgadd*)
+                pkg=$(parse_func_arg $func)
+                log "adding package $pkg"
+                apt install -y $pkg
+                ;;
+            pkgrm*)
+                pkg=$(parse_func_arg $func)
+                log "removing package $pkg"
+                apt remove --purge -y $pkg
+                ;;
+            repo*)
+                repourl=$(parse_func_arg $func)
+                log "adding repo $repourl"
+                tmppkg=$(mktemp)
+                wget -q -O $tmppkg $repourl && dpkg -i $tmppkg && rm -f $tmppkg && apt update -y
+                ;;
+            upgrade)
+                log "upgrading packages"
+                apt update -y && apt dist-upgrade -y && apt autoremove -y
+                ;;
+            *)
+                die "unknown function: $func"
+                ;;
+        esac
+    done
+
+    exit
+}
+
 function uninstall()
 {
     if [ -f $service_file ]; then
@@ -187,6 +247,10 @@ while [ $# -gt 0 ]; do
         install)
             shift
             install $1
+            ;;
+        prepare)
+            shift
+            prepare $1
             ;;
         start)
             shift
