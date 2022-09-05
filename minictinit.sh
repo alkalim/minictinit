@@ -45,6 +45,7 @@ Functions for "prepare":
     pkgrm(<package>)           - remove <package>
     repoadd(<repo_url>)        - add <repo_url> to apt sources
     upgrade                    - upgrade packages
+    removefp                   - remove fingerprints (host keys, machine id)
 
 Functions for "install" / "start":
     ssh                        - configure ssh (keys, root user, service)
@@ -203,6 +204,11 @@ function prepare
             upgrade)
                 log "upgrading packages"
                 apt update -y && apt dist-upgrade -y && apt autoremove -y
+                ;;
+            removefp)
+                log "removing fingerprint files"
+                cd /etc/ssh && rm -f ssh_host_*_key*
+                rm -f /etc/machine-id
                 ;;
             *)
                 die "unknown function: $func"

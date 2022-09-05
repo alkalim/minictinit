@@ -1,9 +1,10 @@
 # minictinit.sh
 `minictinit.sh` is a simple init script for use with LXC containers based on Debian/Ubuntu. It helps to prepare containers in virtualization systems, such as [ProxMox VE](https://github.com/proxmox). Basically, it's [cloudinit](https://github.com/canonical/cloud-init) with only one config source (command line) and infnitely less features. `minictinit.sh` can be used for:
 * initial image configuration
-  * update system
+  * update system (dist-upgrade)
   * add apt sources
   * add/remove packages
+  * remove fingerprints (ssh host keys, /etc/machine-id)
 * first time boot configuration
   * SSH configuration (create host keys, enable root login, enable service)
   * Zabbix agent configuration (configure autoregistration, limit log file size)
@@ -20,7 +21,7 @@ Download minictinit.sh by wget or just paste the source into file and make it ex
 
 Prepare software in the container by running `minictinit.sh prepare`:
 
-    ./minictinit.sh prepare 'pkgrm(postfix),pkgadd(curl),repoadd(https://repo.example.com/download/repo.deb),update'
+    ./minictinit.sh prepare 'removefp,pkgrm(postfix),repoadd(https://repo.example.com/download/repo.deb),pkgadd(zabbix-agent),update'
 
 ### Installation
 Install the init service. It will be run only once on a first boot:
@@ -44,12 +45,14 @@ Commands:
     install &lt;functions&gt;  - install systemd service with &lt;functions&gt;
     start &lt;functions&gt;    - start service (should be run by systemd)
     uninstall            - remove systemd service
+    removefp             - remove fingerprints (host keys, machine id)
 
 Functions for "prepare":
     pkgadd(&lt;package&gt;)          - install &lt;package&gt;
     pkgrm(&lt;package&gt;)           - remove &lt;package&gt;
     repoadd(&lt;repo_url&gt;)        - add &lt;repo_url&gt; to apt sources
     upgrade                    - upgrade packages
+    removefp                   - remove fingerprints (host keys, machine id)
 
 Functions for "install" / "start":
     ssh                        - configure ssh (keys, root user, service)
